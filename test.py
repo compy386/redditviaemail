@@ -1,3 +1,10 @@
+# To do:
+# Get the titles of reddit submissions pulled from the pages
+# Import the results of this script to a database
+# Create another script to run this script on every reddit subreddit someone is subscribed to every hour,
+and update results to the database
+   #Side-note, ensure validity of subreddit is checked before adding to master list
+
 from bs4 import BeautifulSoup
 from urllib2 import Request
 from urllib2 import urlopen
@@ -11,6 +18,7 @@ getcomments = []
 gethyperlinks = []
 oldtitles = []
 
+#Finds where a substring is located within a string
 def find_indices(target, subst):
    returnme = []
    for i in range(len(target) - len(subst)):
@@ -21,6 +29,8 @@ def find_indices(target, subst):
    else:      
       return returnme
 
+#####################################################
+# Unused Currently. 
 def maketext(page):
    hdr = {'User-Agent' : 'RedditDigest Bot'}
    req = Request(page, headers = hdr)
@@ -36,24 +46,12 @@ def maketext(page):
          f.write(soup[i])
       except:
           pass
+####################################################
 
-#def index_subst_in_soupy(soupyinput, subst):
-#<a class="title " href="
-#</a>
-#   x = []   
-#   for i in range(len(soupyinput)):
-#      if subst == soupyinput[i:i+len(subst)]:
-#         for j in range(1000):
-#            if soupyinput[i + j:i + j + 4] == '</a>':
-#               while sou
-#   print x
-#   return x
-
+#below code is a bit bloated, could be cleaned up a bit
 def find_substring_in_list(total, lookingfor, counter):
    counter = counter + 25
    lookingfor = '&count='
-#  &amp;count=25&amp;after=
-#  &count=50&t=week&after=
    for i in range(len(total)):
       for j in range(len(str(total[i])) - len(lookingfor)):
          x = str(total[i])
@@ -63,14 +61,15 @@ def find_substring_in_list(total, lookingfor, counter):
 
 #get the total vote count of all reddit topics on a reddit page
 def get_vote_count(target):
-   downs = find_indices(target, 'data-downs')
-   ups = find_indices(target, 'data-ups')
+   downs = find_indices(target, 'data-downs') # data-downs and data-ups mark where the upvote and downvote count
+   ups = find_indices(target, 'data-ups')     # is in the web code
    downvotes = []
    upvotes = []   
-   for i in range(len(downs)):
+
+for i in range(len(downs)): #Could be optimized
       for j in range(6):
          try:
-	    may_be_integer = int(target[downs[i] + 12 + j])
+	    may_be_integer = int(target[downs[i] + 12 + j])                  
          except ValueError:
             downvotes.append(int(target[downs[i] + 12:downs[i] + 12 + j]))
             break
@@ -86,8 +85,9 @@ def get_vote_count(target):
       x.append(upvotes[i] - downvotes[i])
    return x
 
-#The following three functions are effectively the same; finding the correct
+#The following three functions are effectively the same: finding the correct
 #index of the user and moving around to capture the correct part of what we need
+
 def get_commentlinks(soupyinput):
    global indexme
    returnme = []
@@ -119,55 +119,26 @@ def get_users(soupyinput):
             returnme.append(soupyinput[i + startpoint])
    return returnme
 
-#go to the next reddit page
-
+# These next two scripts together allow for the link address of the "next" button at the bottom of every subreddit's page
 def find_index(linklist, findme):
    for i in range(len(linklist)):
       x = find_indices(linklist[i], findme)   
       if len(x) > 2:
          return x
-
 def findnextpage(linklist):
    startme = []
    findme = 'after'
    for i in range(len(linklist)):
       if find_index(linklist[i], findme) != '0':
          return find_index(linklist[i], findme)
-   print "FUUUUUUUCK"
-   return 4
 
-
-#   returnme = ''
-#   counter = 0
-#   a = find_indices(soup, 'nofollow next')
-#   print a
-#   b = a[0]
-#   b = b - 80
-#   while returnme == '':
-#      b = b - 1
-#      if soup[b:b+13] == 'http://www.re':
-#         while returnme == '':
-#            if soup[b + counter] == '"':
-#               returnme = soup[b:b + counter]
-#            else:
-#               counter = counter + 1
-#            if counter > 1000000:
-#               print "Problem"
-#               break
-#      break
-#   return returnme
-
-def insert(original, new, pos):
-   return original[:pos] + new + original[pos:]
-
-
-#<a class="title " href="
-
+# Beginning of retrieving the titles of reddit pages
 def get_titles(soupyinput):
    x = index_subst_in_soupy(soupyinput, '<a class="title " href="')
    print x
    return x
 
+#where the action happens
 def GetUpvotesOver(webpage, iterations, threshold, oldvotes, oldusers, oldlinks, oldcomments):
    y = 0
    global getusers
@@ -181,8 +152,6 @@ def GetUpvotesOver(webpage, iterations, threshold, oldvotes, oldusers, oldlinks,
    stoppingpoint = -1
    soupy = BeautifulSoup(page)
    soup = soupy.prettify()
-#   x = findnextpage(soup)
-#   print x
    linklist = []
    for link in soupy.find_all('a'):
       linklist.append(link.get('href'))
@@ -190,7 +159,6 @@ def GetUpvotesOver(webpage, iterations, threshold, oldvotes, oldusers, oldlinks,
    getvotes = oldvotes + get_vote_count(soup)
    getcommentlinks = oldcomments + get_commentlinks(linklist)
    gethyperlinks = oldlinks + get_hyperlinks(linklist)
-#   gettitles = gettitles + get_titles(soup)
    nextpage = find_substring_in_list(linklist, '', 0)
    for i in range(25):
       if threshold >= getvotes[i + (25 * iterations)]:   
@@ -216,27 +184,8 @@ def GetUpvotesOver(webpage, iterations, threshold, oldvotes, oldusers, oldlinks,
 
 
 def main():
-    global getusers
-    global getvotes
-    global getcommentlinks
-    global gethyperlinks
-    global oldtitles
-#   page4 = NextPage('http://www.reddit.com/r/pics/top?sort=top&t=month')
-    allthethings = GetUpvotesOver('http://www.reddit.com/r/treecomics/top?sort=top&t=month', 0, 300, [], [], [], [])
+    allthethings = GetUpvotesOver('http://www.reddit.com/r/wtf/top?sort=top&t=day', 0, 1300, [], [], [], [])
     print allthethings
-#   webpage = urlopen('http://www.reddit.com/r/hookah/')
-#   soupy = BeautifulSoup(webpage)
-#   soup = soupy.prettify()
-#   print soup
-#   votes = get_vote_count(soup)
-#   print votes
-#   a = []
-#   n = 0
-#   for link in soupy.find_all('a'):
-#      a.append(link.get('href'))
-#   print a
-#   users = get_users(a)
-#   links = get_hyperlinks(a)
 
 if __name__ == '__main__':
    main()
